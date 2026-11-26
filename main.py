@@ -21,6 +21,11 @@ How the winner was chosen (staging scorecard, 26 Nov 2026 ~08:30 WIB):
 
 The program re-derives the pick from the scores: highest combined score
 wins, ties go to the earliest candidate in the list.
+
+v6 adds JUDGES_NOTES (the per-finalist judging notes from the scorecard)
+and stricter validation: the entry must be exactly one line with no
+leading/trailing whitespace, so a stray newline can never slip into the
+submitted text.
 """
 
 import os
@@ -53,6 +58,28 @@ PANEL = {}
 # Final combined score = rubric score (panel unavailable).
 SCORES = dict(RUBRIC)
 
+# Judging notes per finalist, quoted from the staging scorecard.
+# The winner's note explains why it beat the runner-up; the runner-up
+# notes explain why each fell short. Panel: no scores (503, see above).
+JUDGES_NOTES = {
+    "I'm not a restaurant, stop staring at me like the menu is going to change.":
+        "WINNER. Most universal and densest roast — everyone has stared "
+        "into an empty fridge hoping its contents changed. Theme 9, "
+        "originality 9, density 9: no wasted word, the fridge's voice is "
+        "clear, the punchline lands at once.",
+    "You bought kale again. We both know how this ends: me, holding it until it becomes a science experiment.":
+        "Runner-up (9.00). Loses narrowly: the premise is more specific — "
+        "not everyone buys kale.",
+    "I've seen you eat ice cream straight from the tub at midnight. There are no secrets between us now.":
+        "Strong midnight-confession angle; the 'no secrets' payoff is a "
+        "touch softer than the winner's menu gag.",
+    "My light turns on every time you open me, not because I'm happy to see you — it's a warning.":
+        "Clever light-as-warning twist; slightly less relatable than the "
+        "empty-fridge stare.",
+    "You open me at 2 a.m. like I owe you a miracle, and all I have is expired yogurt.":
+        "Good 2 a.m. premise; the expired-yogurt payoff is familiar ground.",
+}
+
 
 def score(text: str) -> float:
     """Final combined score (/10) for a candidate."""
@@ -71,6 +98,13 @@ def pick_winner() -> str:
 
 
 def validate(text: str) -> None:
+    # Stricter than the contest minimum: the entry must be exactly one
+    # line, with no leading/trailing whitespace and no line breaks, so
+    # the file we write is exactly the staged winner text.
+    if text != text.strip():
+        raise ValueError("entry must not have leading or trailing whitespace")
+    if "\n" in text or "\r" in text:
+        raise ValueError("entry must be a single line")
     if not (1 <= len(text) <= MAX_CHARS):
         raise ValueError(f"entry must be 1-{MAX_CHARS} characters, got {len(text)}")
     if not text.strip():
@@ -87,6 +121,7 @@ def main() -> None:
     for candidate in sorted(FINALISTS, key=score, reverse=True):
         mark = "  <-- pick" if candidate == winner else ""
         print(f"{score(candidate):>6.2f}  {candidate}{mark}")
+    print(f"judge: {JUDGES_NOTES[winner]}")
 
     os.makedirs("/output", exist_ok=True)
     with open("/output/entry.txt", "w", encoding="utf-8", newline="") as f:
